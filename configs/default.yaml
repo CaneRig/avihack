@@ -1,0 +1,64 @@
+# Все настраиваемые значения решения. Код чисел-параметров не содержит.
+paths:
+  raw_train: dataset/public/public-train-annotated.jsonl
+  raw_test: dataset/public/public-test-dataset.parquet
+  challenge: data/challenge/seed_examples.jsonl
+  processed: data/processed
+  runs: reports/runs.jsonl
+  tfidf_dir: artifacts/tfidf
+  prompts: prompts
+
+data:
+  cluster_sim: 0.8        # порог косинусной близости TF-IDF для кластеров близких повторов
+  n_folds: 5
+  seed: 42
+  min_chars: 20           # описание короче (после нормализации) -> ответ пустой
+
+eval:
+  bootstrap_n: 2000
+  bootstrap_seed: 0
+  ci: [2.5, 97.5]
+  accept_win_share: 0.85  # правило принятия изменений (ТЗ 1)
+  accept_silver_drop: 0.005
+
+layer1:
+  C: 10.0
+  char_ngram: [2, 5]
+  word_ngram: [1, 2]
+  min_df: 2               # не задано в ТЗ; взято минимальное осмысленное значение
+  max_iter: 1000
+  threshold: 0.5
+  use_title: true
+  grid_C: [1.0, 3.0, 10.0, 30.0]
+  grid_char_ngram: [[2, 5], [1, 4]]
+
+train:
+  exclude_public_test: true   # исключать тексты, близкие к публичному тесту (честная оценка на gold)
+
+mode: classify            # classify | fast | full
+
+llm:
+  base_url: http://localhost:11434
+  model: "hf.co/t-tech/T-lite-it-2.1-GGUF:Q4_K_M"
+  num_ctx: 4096
+  temperature: 0.3        # температура генерации черновиков (ТЗ 3)
+  top_p: 0.9
+  num_predict: 600
+  seed: 42
+  timeout: 300
+  keep_alive: 30m
+  retries: 2              # повторов при пустом или невалидном ответе
+  think: null             # для Qwen3.5 поставить false
+
+drafts:
+  title_max: 50
+  text_min: 300           # ниже — только предупреждение (если в исходнике мало сведений, текст короткий)
+  text_max: 1200
+  frag_split_chars: 200   # абзацы длиннее режутся на предложения
+  frag_l1_thr: 0.8        # фрагмент относится к категории, если слой 1 даёт не меньше
+  new_words_abs: 3        # нарушение, если новых слов больше max(abs, share * содержательных)
+  new_words_share: 0.1
+  stem_len: 5             # длина основы для сопоставления слов с исходником
+  coverage_min: 0.6
+  overlap_max: 0.9        # доля 5-грамм черновика, совпавших с исходником
+  max_general: 3          # сколько фрагментов общих условий переносить в шаблон
