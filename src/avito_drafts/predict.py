@@ -32,7 +32,7 @@ class Predictor:
         """Ленивое создание судьи роли упоминания."""
         if self._judge is None:
             from .judge import Judge
-            self._judge = Judge(self.cfg)
+            self._judge = Judge(self.cfg, l1=self.l1)
         return self._judge
 
     def judge_ready(self) -> bool:
@@ -67,13 +67,13 @@ class Predictor:
         mode = mode or self.mode
         use_title = self.cfg["layer1"]["use_title"]
         descs = [normalize(r.get("description")) for r in rows]
-        titles = [normalize(r.get("title")) if use_title else "" for r in rows]
+        titles = [normalize(r.get("title")) for r in rows]  # заголовок нужен черновикам; в классификации его нет
         texts = [make_text(t, d, use_title) for t, d in zip(titles, descs)]
         t0 = time.time()
         P = self.l1.predict_proba(texts) if self.l1 is not None else [None] * len(rows)
         t_cls = (time.time() - t0) / max(len(rows), 1)
         use_judge = mode != "fast" and self.judge_ready()
-        judged: dict[tuple[str, str], tuple[list[int], dict[str, Any]]] = {}
+        judged: dict[str, tuple[list[int], dict[str, Any]]] = {}
         out: list[tuple[dict[str, Any], dict[str, Any]]] = []
         for r, d, t, p, tx in tqdm(list(zip(rows, descs, titles, P, texts)), disable=not progress, desc=mode):
             info: dict[str, Any] = {"mode": mode, "probs": {}, "timing": {"classify": t_cls}}
@@ -84,12 +84,11 @@ class Predictor:
             if p is not None:
                 info["probs"] = dict(zip(CATS, map(float, p)))
             if use_judge:
-                k = (t, d)
-                if k not in judged:
-                    judged[k] = self.judge().judge(r.get("title"), d)
-                found, jinfo = judged[k]
+                if d not in judged:  # заголовок на категории не влияет: ключ — описание
+                    judged[d] = self.judge().judge(r.get("title"), d)
+                found, jinfo = judged[d]
                 info["judge"] = jinfo
-                info["source"] = "keywords_fallback" if jinfo.get("fallback") else "judge"
+                info["source"] = "keywords_fallback" if jinfo.get("fallback") else ("panel" if jinfo.get("mode") == "panel" else "judge")
                 cats = sorted(c for c in found if c != mc_id)
             elif mode != "fast" and self.cfg.get("judge", {}).get("enabled"):  # судья включён, но LLM недоступна
                 info["source"] = "keywords_fallback"

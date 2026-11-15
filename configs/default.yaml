@@ -28,7 +28,7 @@ layer1:
   min_df: 2               # не задано в ТЗ; взято минимальное осмысленное значение
   max_iter: 1000
   threshold: 0.5
-  use_title: true
+  use_title: false        # указание ментора: заголовок в классификации не используется
   grid_C: [1.0, 3.0, 10.0, 30.0]
   grid_char_ngram: [[2, 5], [1, 4]]
 
@@ -73,12 +73,22 @@ drafts:
 
 judge:                    # слой «роль упоминания»: найти строки по корням -> LLM оценивает роль -> снять категорию
   enabled: true
-  prompt: prompts/judge_system.md
+  mode: panel             # panel: мягкий + строгий судья, при расхождении арбитр; single: один мягкий судья
+  prompt: prompts/judge_system.md          # мягкий судья
+  prompt_strict: prompts/judge_strict.md   # строгий судья
+  prompt_arbiter: prompts/judge_arbiter.md # арбитр (одна категория за вызов)
   temperature: 0.0
   num_predict: 320
+  arbiter_num_predict: 160
+  arbiter_full_text_chars: 1800   # описание не длиннее — арбитру весь текст, иначе начало + условия + строки категории
   max_lines: 6            # строк-оснований на категорию
   intro_chars: 350        # длина начала объявления в запросе
-  remove_roles: [package_only, team, quality_control, example_of_done_work, negation_or_comparison, other_party_or_materials, object_not_work]   # other_not_service категорию не снимает
+  remove_roles: [package_only, team, quality_control, example_of_done_work, negation_or_comparison, other_party_or_materials, object_not_work, other_not_service]
+  single_keep_roles: [other_not_service]   # в режиме single эти роли категорию не снимают (прежнее поведение)
+  tfidf_candidates: true  # второй источник кандидатов: слой 1 по описанию (ловит опечатки)
+  tfidf_candidate_threshold: 0.5
+  tfidf_lines: 3          # строк-оснований для кандидата без корня
+  tfidf_short_chars: 600  # описание короче — все строки
 
 demo:
   host: 127.0.0.1
