@@ -2,7 +2,7 @@
 
 По тексту объявления о ремонте (исходная микрокатегория 101) решение находит услуги из микрокатегорий 102–106 и для каждой предлагает черновик объявления. Выход строго в формате организаторов: `{"drafts": [{"mcId": int, "title": str|null, "text": str|null}]}`.
 
-Сейчас в репозитории только план. Код пишется по техническим заданиям из `docs/`.
+Реализованы шаги 0–2 плана (`docs/08_repo_and_roadmap.md`): данные и оценка, слой 1 классификации, черновики. Код — по техническим заданиям из `docs/`.
 
 ## С чего начать
 
@@ -30,3 +30,32 @@
 | [docs/10_sources.md](docs/10_sources.md) | Источники |
 
 Исходные материалы организаторов лежат в `task/` и `dataset/public/`. Папка `scratch/` — разведочные скрипты, в git не попадает.
+
+## Как запустить
+
+Все команды — из корня репозитория, Python из `.venv` (на Windows добавьте `PYTHONUTF8=1`).
+
+```bash
+# 0. Проверка окружения: пакеты, GPU, Ollama по JSON-схеме, BERTA, длины текстов в токенах
+.venv/Scripts/python scripts/check_env.py
+
+# 1. Таблицы data/processed/ и сводка по данным
+.venv/Scripts/python scripts/prepare_data.py
+
+# 2. Ориентиры D1 и перебор слоя 1 (C1) с записью в reports/runs.jsonl (около 25 минут на CPU)
+.venv/Scripts/python scripts/run_step1.py
+
+# 3. Обучить слой 1 и сохранить в artifacts/tfidf/
+.venv/Scripts/python scripts/train.py
+
+# 4. Предсказание для файла (CSV/Parquet/JSONL со столбцом description; режимы classify | fast | full)
+.venv/Scripts/python scripts/predict_batch.py dataset/public/public-test-dataset.parquet out.jsonl --mode classify
+
+# 5. Оценка файла предсказаний на срезе (gold_raw, gold_consensus, silver_cv, silver_fold0, challenge)
+.venv/Scripts/python scripts/evaluate.py out.jsonl.bot.jsonl --slice gold_raw
+
+# 6. Черновики: эксперимент G1 (нужен запущенный Ollama с моделью из docs/09_downloads.md)
+.venv/Scripts/python scripts/run_g1.py
+```
+
+Тесты (pytest в окружении нет, файлы запускаются напрямую): `PYTHONPATH=src .venv/Scripts/python tests/test_core.py`, `tests/test_format.py`.
