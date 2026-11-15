@@ -1,0 +1,277 @@
+{
+  "when": "2026-11-15T21:53:28",
+  "source": "challenge",
+  "model": "hf.co/t-tech/T-lite-it-2.1-GGUF:Q4_K_M",
+  "num_ctx": 4096,
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 2080 Super with Max-Q Design",
+    "memory_used_mb": 5488.0,
+    "memory_total_mb": 8192.0,
+    "power_draw_w": 4.6
+  },
+  "cost_assumptions": {
+    "kwh_price_rub": 7.0,
+    "gpu_rent_rub_per_hour": 60.0,
+    "note": "стоимость — оценка, не измерение; мощность по nvidia-smi учитывает только видеокарту"
+  },
+  "runs": [
+    {
+      "judge_mode": "panel",
+      "drafts": "none",
+      "ads": 64,
+      "unique_ads": 64,
+      "wall_seconds": 2078.5,
+      "ads_per_minute": 1.8,
+      "seconds_per_ad": {
+        "median": 32.249,
+        "p95": 62.932,
+        "mean": 32.468,
+        "n": 64
+      },
+      "share_ads_with_llm_call": 0.953,
+      "share_ads_without_categories": 0.344,
+      "decision_sources": {
+        "panel": 62,
+        "none": 1,
+        "keywords_fallback": 1
+      },
+      "judge": {
+        "llm_calls_per_ad_mean": 2.36,
+        "seconds_per_judged_ad": {
+          "median": 33.393,
+          "p95": 62.772,
+          "mean": 33.408,
+          "n": 61
+        },
+        "stages": {
+          "soft": {
+            "calls": 61,
+            "seconds_per_ad": {
+              "median": 14.542,
+              "p95": 26.33,
+              "mean": 15.068,
+              "n": 61
+            },
+            "tokens_in_per_call": 1006.8,
+            "tokens_out_per_call": 95.4
+          },
+          "strict": {
+            "calls": 60,
+            "seconds_per_ad": {
+              "median": 13.857,
+              "p95": 29.494,
+              "mean": 15.297,
+              "n": 60
+            },
+            "tokens_in_per_call": 1226.6,
+            "tokens_out_per_call": 94.8
+          },
+          "arbiter": {
+            "calls": 30,
+            "seconds_per_ad": {
+              "median": 11.58,
+              "p95": 22.405,
+              "mean": 12.558,
+              "n": 16
+            },
+            "tokens_in_per_call": 576.5,
+            "tokens_out_per_call": 45.4
+          }
+        },
+        "disagreements": 30,
+        "fallback_ads": 1,
+        "errors": 1,
+        "tfidf_only_candidates": 10
+      },
+      "drafts_stats": {
+        "count": 0,
+        "by_source": {},
+        "passed_first_share": null,
+        "template_share": null,
+        "seconds_per_draft": null,
+        "llm_calls_per_draft_mean": null,
+        "tokens_in_per_draft": null,
+        "tokens_out_per_draft": null,
+        "errors": 0
+      },
+      "tokens": {
+        "in_total": 152304,
+        "out_total": 12872,
+        "in_per_ad": 2379.8,
+        "out_per_ad": 201.1,
+        "out_tokens_per_llm_second": 6.3
+      },
+      "gpu": {
+        "peak_memory_mb": 5936.0,
+        "power_draw_w_mean": 22.4
+      },
+      "quality": {
+        "slice": "challenge",
+        "n": 64,
+        "micro_f1": 0.9285714285714286,
+        "ci": [
+          0.8524590163934426,
+          0.9852994458653027
+        ],
+        "precision": 0.8904109589041096,
+        "recall": 0.9701492537313433,
+        "f1_by_cat": {
+          "102": 0.9629629629629629,
+          "103": 0.9565217391304348,
+          "104": 0.8695652173913043,
+          "105": 0.9047619047619048,
+          "106": 0.96
+        },
+        "fp": 8,
+        "fn": 2,
+        "empty_pred_share": 0.34375,
+        "empty_true_share": 0.375,
+        "fp_on_empty_true": 6,
+        "exact_ads": 59,
+        "dev": {
+          "n": 40,
+          "micro_f1": 0.918,
+          "fp": 6,
+          "fn": 1,
+          "exact_ads": 37
+        },
+        "holdout": {
+          "n": 24,
+          "micro_f1": 0.945,
+          "fp": 2,
+          "fn": 1,
+          "exact_ads": 22
+        }
+      },
+      "cost_estimate_per_1000_ads_rub": {
+        "electricity": 1.41,
+        "gpu_rent": 541.28,
+        "watts_used": 22.4
+      }
+    },
+    {
+      "judge_mode": "single",
+      "drafts": "none",
+      "ads": 64,
+      "unique_ads": 64,
+      "wall_seconds": 943.0,
+      "ads_per_minute": 4.1,
+      "seconds_per_ad": {
+        "median": 14.781,
+        "p95": 26.31,
+        "mean": 14.732,
+        "n": 64
+      },
+      "share_ads_with_llm_call": 0.953,
+      "share_ads_without_categories": 0.266,
+      "decision_sources": {
+        "judge": 62,
+        "none": 1,
+        "keywords_fallback": 1
+      },
+      "judge": {
+        "llm_calls_per_ad_mean": 0.95,
+        "seconds_per_judged_ad": {
+          "median": 14.653,
+          "p95": 25.452,
+          "mean": 14.783,
+          "n": 61
+        },
+        "stages": {
+          "soft": {
+            "calls": 61,
+            "seconds_per_ad": {
+              "median": 14.653,
+              "p95": 25.452,
+              "mean": 14.783,
+              "n": 61
+            },
+            "tokens_in_per_call": 1006.8,
+            "tokens_out_per_call": 95.4
+          },
+          "strict": {
+            "calls": 0,
+            "seconds_per_ad": null,
+            "tokens_in_per_call": null,
+            "tokens_out_per_call": null
+          },
+          "arbiter": {
+            "calls": 0,
+            "seconds_per_ad": null,
+            "tokens_in_per_call": null,
+            "tokens_out_per_call": null
+          }
+        },
+        "disagreements": 0,
+        "fallback_ads": 1,
+        "errors": 1,
+        "tfidf_only_candidates": 10
+      },
+      "drafts_stats": {
+        "count": 0,
+        "by_source": {},
+        "passed_first_share": null,
+        "template_share": null,
+        "seconds_per_draft": null,
+        "llm_calls_per_draft_mean": null,
+        "tokens_in_per_draft": null,
+        "tokens_out_per_draft": null,
+        "errors": 0
+      },
+      "tokens": {
+        "in_total": 61414,
+        "out_total": 5820,
+        "in_per_ad": 959.6,
+        "out_per_ad": 90.9,
+        "out_tokens_per_llm_second": 6.5
+      },
+      "gpu": {
+        "peak_memory_mb": 5936.0,
+        "power_draw_w_mean": 25.5
+      },
+      "quality": {
+        "slice": "challenge",
+        "n": 64,
+        "micro_f1": 0.7810650887573964,
+        "ci": [
+          0.6666666666666666,
+          0.8800108695652173
+        ],
+        "precision": 0.6470588235294118,
+        "recall": 0.9850746268656716,
+        "f1_by_cat": {
+          "102": 0.8125,
+          "103": 0.7333333333333333,
+          "104": 0.7096774193548387,
+          "105": 0.8163265306122449,
+          "106": 0.8148148148148148
+        },
+        "fp": 36,
+        "fn": 1,
+        "empty_pred_share": 0.265625,
+        "empty_true_share": 0.375,
+        "fp_on_empty_true": 26,
+        "exact_ads": 47,
+        "dev": {
+          "n": 40,
+          "micro_f1": 0.743,
+          "fp": 26,
+          "fn": 1,
+          "exact_ads": 28
+        },
+        "holdout": {
+          "n": 24,
+          "micro_f1": 0.844,
+          "fp": 10,
+          "fn": 0,
+          "exact_ads": 19
+        }
+      },
+      "cost_estimate_per_1000_ads_rub": {
+        "electricity": 0.73,
+        "gpu_rent": 245.57,
+        "watts_used": 25.5
+      }
+    }
+  ]
+}
