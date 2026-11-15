@@ -1,0 +1,249 @@
+{
+  "when": "2026-11-16T00:47:25",
+  "source": "gold_consensus",
+  "model": "hf.co/t-tech/T-lite-it-2.1-GGUF:Q4_K_M",
+  "num_ctx": 4096,
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 3060",
+    "memory_used_mb": 2020.0,
+    "memory_total_mb": 12288.0,
+    "power_draw_w": 42.5
+  },
+  "cost_assumptions": {
+    "kwh_price_rub": 7.0,
+    "gpu_rent_rub_per_hour": 60.0,
+    "note": "стоимость — оценка, не измерение; мощность по nvidia-smi учитывает только видеокарту"
+  },
+  "runs": [
+    {
+      "judge_mode": "panel",
+      "drafts": "none",
+      "ads": 138,
+      "unique_ads": 138,
+      "wall_seconds": 443.1,
+      "ads_per_minute": 18.7,
+      "seconds_per_ad": {
+        "median": 1.692,
+        "p95": 8.835,
+        "mean": 3.205,
+        "n": 138
+      },
+      "share_ads_with_llm_call": 0.522,
+      "share_ads_without_categories": 0.522,
+      "decision_sources": {
+        "panel": 130,
+        "none": 7,
+        "keywords_fallback": 1
+      },
+      "judge": {
+        "llm_calls_per_ad_mean": 1.33,
+        "seconds_per_judged_ad": {
+          "median": 4.914,
+          "p95": 10.309,
+          "mean": 5.955,
+          "n": 72
+        },
+        "stages": {
+          "soft": {
+            "calls": 72,
+            "seconds_per_ad": {
+              "median": 2.22,
+              "p95": 4.29,
+              "mean": 3.063,
+              "n": 72
+            },
+            "tokens_in_per_call": 1218.7,
+            "tokens_out_per_call": 111.5
+          },
+          "strict": {
+            "calls": 71,
+            "seconds_per_ad": {
+              "median": 2.176,
+              "p95": 4.063,
+              "mean": 2.315,
+              "n": 71
+            },
+            "tokens_in_per_call": 1438.9,
+            "tokens_out_per_call": 99.1
+          },
+          "arbiter": {
+            "calls": 41,
+            "seconds_per_ad": {
+              "median": 2.012,
+              "p95": 5.515,
+              "mean": 2.437,
+              "n": 18
+            },
+            "tokens_in_per_call": 723.6,
+            "tokens_out_per_call": 48.6
+          }
+        },
+        "disagreements": 41,
+        "fallback_ads": 1,
+        "errors": 1,
+        "tfidf_only_candidates": 7
+      },
+      "drafts_stats": {
+        "count": 0,
+        "by_source": {},
+        "passed_first_share": null,
+        "template_share": null,
+        "seconds_per_draft": null,
+        "llm_calls_per_draft_mean": null,
+        "tokens_in_per_draft": null,
+        "tokens_out_per_draft": null,
+        "errors": 0
+      },
+      "tokens": {
+        "in_total": 219579,
+        "out_total": 17056,
+        "in_per_ad": 1591.2,
+        "out_per_ad": 123.6,
+        "out_tokens_per_llm_second": 39.8
+      },
+      "gpu": {
+        "peak_memory_mb": 8055.0,
+        "power_draw_w_mean": 168.0
+      },
+      "quality": {
+        "slice": "gold_consensus",
+        "n": 138,
+        "micro_f1": 0.8255813953488372,
+        "ci": [
+          0.75,
+          0.8888888888888888
+        ],
+        "precision": 0.7319587628865979,
+        "recall": 0.9466666666666667,
+        "f1_by_cat": {
+          "102": 0.7671232876712328,
+          "103": 0.8421052631578947,
+          "104": 0.8235294117647058,
+          "105": 0.8354430379746836,
+          "106": 0.8656716417910447
+        },
+        "fp": 52,
+        "fn": 8,
+        "empty_pred_share": 0.5217391304347826,
+        "empty_true_share": 0.5942028985507246,
+        "fp_on_empty_true": 43,
+        "exact_ads": 108
+      },
+      "cost_estimate_per_1000_ads_rub": {
+        "electricity": 1.05,
+        "gpu_rent": 53.51,
+        "watts_used": 168.0
+      }
+    },
+    {
+      "judge_mode": "single",
+      "drafts": "none",
+      "ads": 138,
+      "unique_ads": 138,
+      "wall_seconds": 186.4,
+      "ads_per_minute": 44.4,
+      "seconds_per_ad": {
+        "median": 0.826,
+        "p95": 4.042,
+        "mean": 1.345,
+        "n": 138
+      },
+      "share_ads_with_llm_call": 0.522,
+      "share_ads_without_categories": 0.5,
+      "decision_sources": {
+        "judge": 130,
+        "none": 7,
+        "keywords_fallback": 1
+      },
+      "judge": {
+        "llm_calls_per_ad_mean": 0.52,
+        "seconds_per_judged_ad": {
+          "median": 2.153,
+          "p95": 4.157,
+          "mean": 2.4,
+          "n": 72
+        },
+        "stages": {
+          "soft": {
+            "calls": 72,
+            "seconds_per_ad": {
+              "median": 2.153,
+              "p95": 4.157,
+              "mean": 2.4,
+              "n": 72
+            },
+            "tokens_in_per_call": 1218.7,
+            "tokens_out_per_call": 110.2
+          },
+          "strict": {
+            "calls": 0,
+            "seconds_per_ad": null,
+            "tokens_in_per_call": null,
+            "tokens_out_per_call": null
+          },
+          "arbiter": {
+            "calls": 0,
+            "seconds_per_ad": null,
+            "tokens_in_per_call": null,
+            "tokens_out_per_call": null
+          }
+        },
+        "disagreements": 0,
+        "fallback_ads": 1,
+        "errors": 1,
+        "tfidf_only_candidates": 7
+      },
+      "drafts_stats": {
+        "count": 0,
+        "by_source": {},
+        "passed_first_share": null,
+        "template_share": null,
+        "seconds_per_draft": null,
+        "llm_calls_per_draft_mean": null,
+        "tokens_in_per_draft": null,
+        "tokens_out_per_draft": null,
+        "errors": 0
+      },
+      "tokens": {
+        "in_total": 87749,
+        "out_total": 7936,
+        "in_per_ad": 635.9,
+        "out_per_ad": 57.5,
+        "out_tokens_per_llm_second": 45.9
+      },
+      "gpu": {
+        "peak_memory_mb": 8065.0,
+        "power_draw_w_mean": 170.3
+      },
+      "quality": {
+        "slice": "gold_consensus",
+        "n": 138,
+        "micro_f1": 0.84,
+        "ci": [
+          0.76983814030344,
+          0.896394782670505
+        ],
+        "precision": 0.735,
+        "recall": 0.98,
+        "f1_by_cat": {
+          "102": 0.7837837837837838,
+          "103": 0.8421052631578947,
+          "104": 0.8285714285714286,
+          "105": 0.85,
+          "106": 0.8985507246376812
+        },
+        "fp": 53,
+        "fn": 3,
+        "empty_pred_share": 0.5,
+        "empty_true_share": 0.5942028985507246,
+        "fp_on_empty_true": 41,
+        "exact_ads": 109
+      },
+      "cost_estimate_per_1000_ads_rub": {
+        "electricity": 0.45,
+        "gpu_rent": 22.51,
+        "watts_used": 170.3
+      }
+    }
+  ]
+}
