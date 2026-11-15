@@ -62,3 +62,26 @@ drafts:
   coverage_min: 0.6
   overlap_max: 0.9        # доля 5-грамм черновика, совпавших с исходником
   max_general: 3          # сколько фрагментов общих условий переносить в шаблон
+  prompt_variant: b       # a: только объявление; b: объявление + фрагменты категории; c: фрагменты категории + общие условия (G2)
+  regen: true             # шаг 4 ТЗ 3: один повтор с замечаниями (G3)
+  regen_temperature: 0.1
+  regen_max_viol_chars: 300   # сколько символов замечаний передавать в повторный вызов
+  sample_per_cat: 8       # выборка G2/G3: пар на категорию из gold_consensus
+  sample_seed: 7
+  sample_file: reports/g_sample.json
+  max_general_prompt: 5   # сколько фрагментов общих условий класть в подсказку
+
+judge:                    # слой «роль упоминания»: найти строки по корням -> LLM оценивает роль -> снять категорию
+  enabled: true
+  prompt: prompts/judge_system.md
+  temperature: 0.0
+  num_predict: 320
+  max_lines: 6            # строк-оснований на категорию
+  intro_chars: 350        # длина начала объявления в запросе
+  remove_roles: [package_only, team, quality_control, example_of_done_work, negation_or_comparison, other_party_or_materials, object_not_work]   # other_not_service категорию не снимает
+
+demo:
+  host: 127.0.0.1
+  port: 7860
+  chunk: 10             # строк за шаг индикатора выполнения во вкладке «Файл»
+  default_mc_id: 101

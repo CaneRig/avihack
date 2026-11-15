@@ -38,16 +38,21 @@ class LLMClient:
         if c.get("think") is not None:
             body["think"] = c["think"]
         t0 = time.time()
+        trace: list[dict[str, Any]] = []  # по одному элементу на попытку: диагностика пустых ответов
         for attempt in range(self.c["retries"] + 1):  # пустой или битый ответ -> повтор с другим зерном
             body["options"]["seed"] = options["seed"] + attempt
             try:
                 r = self.http.post("/api/chat", json=body)
                 r.raise_for_status()
                 j = r.json()
+                trace.append({"done_reason": j.get("done_reason"), "eval_count": j.get("eval_count"),
+                              "prompt_eval_count": j.get("prompt_eval_count"), "len": len(j.get("message", {}).get("content", ""))})
                 data = json.loads(j["message"]["content"])
                 break
             except (httpx.HTTPError, KeyError, json.JSONDecodeError) as e:
                 if attempt == self.c["retries"]:
-                    raise LLMError(repr(e)) from e
+                    err = LLMError(repr(e))
+                    err.trace = trace  # type: ignore[attr-defined]
+                    raise err from e
         return data, {"tokens_in": j.get("prompt_eval_count", 0), "tokens_out": j.get("eval_count", 0),
-                      "seconds": time.time() - t0}
+                      "seconds": time.time() - t0, "attempts": len(trace), "trace": trace}

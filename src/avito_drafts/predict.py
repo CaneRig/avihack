@@ -7,6 +7,7 @@ from typing import Any
 from tqdm import tqdm
 
 from .config import CATS, ROOT, load_config
+from .keywords import rule_predict
 from .layer1 import TfidfLR
 from .text import has_garbage_only, make_text, normalize
 
@@ -19,8 +20,26 @@ class Predictor:
     def __init__(self, cfg: dict[str, Any] | None = None, mode: str | None = None) -> None:
         self.cfg: dict[str, Any] = cfg or load_config()
         self.mode: str = mode or self.cfg["mode"]
-        self.l1: TfidfLR = TfidfLR.load(ROOT / self.cfg["paths"]["tfidf_dir"])
+        try:
+            self.l1: TfidfLR | None = TfidfLR.load(ROOT / self.cfg["paths"]["tfidf_dir"])
+        except Exception:  # noqa: BLE001  без модели слоя 1 работают правило по корням и судья
+            self.l1 = None
         self._drafter: Any = None
+        self._judge: Any = None
+        self._llm_ok: bool | None = None
+
+    def judge(self) -> Any:
+        """Ленивое создание судьи роли упоминания."""
+        if self._judge is None:
+            from .judge import Judge
+            self._judge = Judge(self.cfg)
+        return self._judge
+
+    def judge_ready(self) -> bool:
+        """Включён ли судья и отвечает ли сервер LLM (проверка один раз на пакет)."""
+        if not self.cfg.get("judge", {}).get("enabled"):
+            return False
+        return self.judge().llm.available()
 
     def decide(self, p: dict[int, float], mc_id: int) -> list[int]:
         """Категории с вероятностью не ниже порога, без исходной, по возрастанию."""
@@ -41,23 +60,46 @@ class Predictor:
 
     def predict_batch(self, rows: list[Row], mode: str | None = None,
                       progress: bool = True) -> list[tuple[dict[str, Any], dict[str, Any]]]:
-        """Пакет: слой 1 батчем на всех строках, затем черновики по строкам; сбой строки не валит пакет."""
+        """Пакет: категории — судья (classify/full) или правило по корням (fast, LLM недоступна), затем черновики.
+
+        Точные повторы (заголовок, описание) судятся один раз; сбой строки не валит пакет.
+        """
         mode = mode or self.mode
         use_title = self.cfg["layer1"]["use_title"]
         descs = [normalize(r.get("description")) for r in rows]
         titles = [normalize(r.get("title")) if use_title else "" for r in rows]
         texts = [make_text(t, d, use_title) for t, d in zip(titles, descs)]
         t0 = time.time()
-        P = self.l1.predict_proba(texts)
+        P = self.l1.predict_proba(texts) if self.l1 is not None else [None] * len(rows)
         t_cls = (time.time() - t0) / max(len(rows), 1)
+        use_judge = mode != "fast" and self.judge_ready()
+        judged: dict[tuple[str, str], tuple[list[int], dict[str, Any]]] = {}
         out: list[tuple[dict[str, Any], dict[str, Any]]] = []
-        for r, d, t, p in tqdm(list(zip(rows, descs, titles, P)), disable=not progress, desc=mode):
+        for r, d, t, p, tx in tqdm(list(zip(rows, descs, titles, P, texts)), disable=not progress, desc=mode):
             info: dict[str, Any] = {"mode": mode, "probs": {}, "timing": {"classify": t_cls}}
             if has_garbage_only(d, self.cfg["data"]["min_chars"]):
                 out.append(({"drafts": []}, info))
                 continue
-            info["probs"] = dict(zip(CATS, map(float, p)))
-            cats = self.decide(info["probs"], int(r.get("mcId") or 101))
+            mc_id = int(r.get("mcId") or 101)
+            if p is not None:
+                info["probs"] = dict(zip(CATS, map(float, p)))
+            if use_judge:
+                k = (t, d)
+                if k not in judged:
+                    judged[k] = self.judge().judge(r.get("title"), d)
+                found, jinfo = judged[k]
+                info["judge"] = jinfo
+                info["source"] = "keywords_fallback" if jinfo.get("fallback") else "judge"
+                cats = sorted(c for c in found if c != mc_id)
+            elif mode != "fast" and self.cfg.get("judge", {}).get("enabled"):  # судья включён, но LLM недоступна
+                info["source"] = "keywords_fallback"
+                cats = sorted(c for c in rule_predict(tx) if c != mc_id)
+            elif self.cfg.get("judge", {}).get("enabled") or p is None:
+                info["source"] = "keywords"
+                cats = sorted(c for c in rule_predict(tx) if c != mc_id)
+            else:  # судья выключен в конфиге: прежний слой 1
+                info["source"] = "tfidf"
+                cats = self.decide(info["probs"], mc_id)
             items: list[dict[str, Any]] = [{"mcId": c, "title": None, "text": None} for c in cats]
             if mode != "classify" and cats:
                 try:

@@ -28,6 +28,7 @@
 | [docs/08_repo_and_roadmap.md](docs/08_repo_and_roadmap.md) | Структура репозитория и порядок реализации на 24 часа |
 | [docs/09_downloads.md](docs/09_downloads.md) | Список загрузок с командами |
 | [docs/10_sources.md](docs/10_sources.md) | Источники |
+| [docs/11_improvement_plan.md](docs/11_improvement_plan.md) | Разбор результатов шагов 0–2 и план улучшений |
 
 Исходные материалы организаторов лежат в `task/` и `dataset/public/`. Папка `scratch/` — разведочные скрипты, в git не попадает.
 
