@@ -8,6 +8,8 @@ artifacts/encoder/
 # окружение и кэш
 .venv/
 
+# nocommit 
+.nocommit
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
