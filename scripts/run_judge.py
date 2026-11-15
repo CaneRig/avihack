@@ -19,8 +19,11 @@ from avito_drafts.judge import Judge  # noqa: E402
 from avito_drafts.llm import LLMClient  # noqa: E402
 
 
+TAG = ""  # суффикс кэша для сравнения моделей (--tag)
+
+
 def cache_path(name: str) -> Path:
-    return ROOT / "reports" / f"judge_{name}.jsonl"
+    return ROOT / "reports" / f"judge{TAG}_{name}.jsonl"
 
 
 def read_cache(name: str) -> dict[str, dict]:
@@ -93,8 +96,17 @@ if __name__ == "__main__":
     ap.add_argument("--note", default="Судья роли упоминания (T-lite Q4_K_M, t=0), правило: снимают роли из judge.remove_roles. ")
     ap.add_argument("--cached", action="store_true", help="только оценка по кэшу, без вызовов LLM")
     ap.add_argument("--slices", nargs="+", default=["gold_consensus", "gold_raw", "challenge"])
+    ap.add_argument("--model", help="другая модель судьи (имя в Ollama)")
+    ap.add_argument("--tag", default="", help="суффикс файлов кэша, например q5 -> reports/judge_q5_<срез>.jsonl")
+    ap.add_argument("--no-think", action="store_true", help="отключить рассуждения (Qwen3.5)")
     a = ap.parse_args()
     cfg = load_config()
+    if a.tag:
+        TAG = "_" + a.tag
+    if a.model:
+        cfg["llm"]["model"] = a.model
+    if a.no_think:
+        cfg["llm"]["think"] = False
     judge = None if a.cached else Judge(cfg, LLMClient(cfg))
     shared: dict[str, dict] = {}
     for name in a.slices:
