@@ -9,7 +9,7 @@ from .keywords import _RX, find_roots
 from .llm import LLMClient
 from .text import for_model, make_text, normalize
 
-NAMES: dict[int, str] = {102: "штукатурные работы", 103: "плиточные работы", 104: "сантехника", 105: "электрика",
+NAMES: dict[int, str] = {102: "штукатурные работы и шпаклёвка стен", 103: "плиточные работы", 104: "сантехника", 105: "электрика",
                          106: "малярные работы и обои"}
 RESTR = re.compile(r"только комплекс|исключительно|отдельн\w+ (вид\w+ )?(мелк\w+ )?(работ|услуг|задач|комнат)|не бер[её]м|не выполня|не занима|минимальн\w+ (объ[её]м|заказ)|частичн|как комплекс|также отдельн|по отдельности")
 ROLES: list[str] = ["service", "package_only", "team", "quality_control", "example_of_done_work", "negation_or_comparison",
