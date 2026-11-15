@@ -1,62 +1,163 @@
 # Авито × Innoglobalhack: дополнительные микрокатегории и черновики объявлений
 
-По тексту объявления о ремонте (исходная микрокатегория 101) решение находит услуги из микрокатегорий 102–106 и для каждой предлагает черновик объявления. Выход строго в формате организаторов: `{"drafts": [{"mcId": int, "title": str|null, "text": str|null}]}`.
+По тексту объявления о ремонте (исходная микрокатегория 101) решение находит услуги из микрокатегорий 102–106 — штукатурные работы, плитка, сантехника, электрика, малярные работы и обои — и для каждой предлагает черновик отдельного объявления. Ответ строго в формате организаторов: `{"drafts": [{"mcId": int, "title": str|null, "text": str|null}]}`.
 
-Реализованы шаги 0–2 плана (`docs/08_repo_and_roadmap.md`): данные и оценка, слой 1 классификации, черновики. Код — по техническим заданиям из `docs/`.
+Всё работает локально: один процесс на Python и одна открытая языковая модель (T-lite-it-2.1) в Ollama. Интернет и платные сервисы не нужны.
 
-## С чего начать
+## Как это работает
 
-| Кто вы | Что читать |
+1. **Поиск упоминаний.** Ключевые слова и TF-IDF находят строки, где названы работы пяти категорий. Если ничего не найдено, ответ пустой и модель не вызывается.
+2. **Три эксперта.** Локальная LLM в трёх ролях решает, предлагает ли исполнитель работу как услугу: мягкий судья, строгий судья и арбитр, который вызывается только при их расхождении. Так отсекаются отрицания («электрику не делаем»), чужие услуги, состав бригады, «только под ключ».
+3. **Черновик.** Та же модель пишет заголовок и текст из фрагментов исходника. Проверки без LLM ищут выдуманные числа, чужие услуги и новые слова; при нарушении — один повтор с замечаниями, затем шаблон из фраз исходника.
+
+Подробно — в [docs/15_architecture.md](docs/15_architecture.md).
+
+## Результаты
+
+Micro-F1 по категориям 102–106.
+
+| Вариант | 138 уникальных текстов публичного теста | Все 208 строк | Трудные примеры |
+| --- | --- | --- | --- |
+| Ключевые слова | 0,830 | 0,826 | 0,48 (16 примеров) |
+| TF-IDF + логистическая регрессия | 0,802 | 0,805 | 0,53 (16) |
+| LLM-судья по найденным строкам | 0,871 | 0,856 | 0,89 (16) |
+| Судья + словарь, уточнённый по данным | 0,890 | 0,866 | 0,845 (59) |
+| Три эксперта | не измерено | не измерено | 0,894 (59, разведка) |
+
+- Потолок на 208 строках при одном ответе на текст — 0,924: одинаковые тексты в публичном тесте размечены по-разному.
+- Черновики: 55 % проходят проверки сразу, ещё 30 % исправляются одним повтором, 15 % заменяются шаблоном (40 пар).
+- Время одного вызова модели: около 2 секунд на настольной видеокарте, около 15 секунд на ноутбуке с RTX 2080 Super Max-Q.
+
+![Классификация на публичном тесте](docs/img/01_classification_progress.svg)
+
+Все числа, графики и отклонённые идеи — в [docs/14_experiments_report.md](docs/14_experiments_report.md).
+
+## Как запустить
+
+Команды — из корня репозитория. В PowerShell один раз на окно:
+
+```powershell
+$env:PYTHONUTF8 = "1"; $env:PYTHONPATH = "src"
+```
+
+В bash те же переменные ставятся перед командой: `PYTHONUTF8=1 PYTHONPATH=src .venv/Scripts/python …` (на Linux — `.venv/bin/python`).
+
+### 1. Окружение и модель
+
+```powershell
+uv venv --python 3.13; uv pip install -r requirements.txt
+```
+
+```powershell
+ollama pull hf.co/t-tech/T-lite-it-2.1-GGUF:Q4_K_M
+```
+
+Ollama должен быть запущен (`ollama serve` или приложение в трее). Проверка окружения:
+
+```powershell
+.venv\Scripts\python scripts\check_env.py
+```
+
+### 2. Данные и быстрая модель
+
+```powershell
+.venv\Scripts\python scripts\prepare_data.py
+```
+
+Модель TF-IDF уже лежит в `artifacts/tfidf/`. Переобучить (несколько минут на процессоре):
+
+```powershell
+.venv\Scripts\python scripts\train.py
+```
+
+### 3. Ответ для файла с объявлениями
+
+Вход — CSV со столбцами `testcase` и `description`. Выход — CSV в формате бота: `testcase,microcats,descriptions`.
+
+```powershell
+.venv\Scripts\python scripts\make_submission.py input.csv output.csv --judge-mode panel --drafts template --with-101
+```
+
+| Параметр | Значения |
 | --- | --- |
-| Хотите понять решение за 5 минут | [docs/00_overview.md](docs/00_overview.md) |
-| Пишете код | [docs/08_repo_and_roadmap.md](docs/08_repo_and_roadmap.md) — порядок шагов, затем ТЗ нужного шага |
-| Запускаете эксперименты | [docs/06_experiments.md](docs/06_experiments.md) — реестр, куда дописывать результаты |
-| Готовите окружение | [docs/09_downloads.md](docs/09_downloads.md) — команды для пакетов и моделей |
+| `--judge-mode` | `panel` — три эксперта; `single` — один судья, втрое быстрее |
+| `--drafts` | `llm` — черновики пишет модель; `template` — шаблон без модели; `none` — только категории |
+| `--with-101` | добавлять 101 в список категорий каждой строки |
+| `--workers N` | считать N объявлений одновременно; нужен Ollama, запущенный с `OLLAMA_NUM_PARALLEL=N` |
+| `--limit N` | только первые N строк, для проверки |
+
+Прогресс пишется в `output.csv.jsonl`; прерванный запуск продолжается с места остановки той же командой.
+
+Для файлов без столбца `testcase` (CSV, Parquet, JSONL со столбцом `description`) есть общий пакетный запуск с ответом в JSONL:
+
+```powershell
+.venv\Scripts\python scripts\predict_batch.py dataset\public\public-test-dataset.parquet out.jsonl --mode full
+```
+
+Режимы: `classify` — только категории, `full` — с черновиками от модели, `fast` — без модели (ключевые слова и шаблоны).
+
+### 4. Оценка
+
+Три эксперта на публичном тесте и трудных примерах; ответы сохраняются в `reports/judge_<метка>_<срез>.jsonl`:
+
+```powershell
+.venv\Scripts\python scripts\run_judge.py --tag myrun
+```
+
+Пересчитать метрики по сохранённым ответам, без вызовов модели:
+
+```powershell
+.venv\Scripts\python scripts\run_judge.py --tag myrun --cached
+```
+
+Оценить готовый файл предсказаний на срезе (`gold_raw`, `gold_consensus`, `silver_cv`, `challenge`):
+
+```powershell
+.venv\Scripts\python scripts\evaluate.py out.jsonl.bot.jsonl --slice gold_raw
+```
+
+Эксперименты с черновиками:
+
+```powershell
+.venv\Scripts\python scripts\run_g23.py --variant c --exp G2,G3
+```
+
+### 5. Графики и тесты
+
+```powershell
+.venv\Scripts\python scripts\make_charts.py
+```
+
+```powershell
+.venv\Scripts\python tests\test_core.py
+```
+
+`tests\test_format.py` проверяет формат ответа на всём публичном тесте; с включённым судьёй он делает сотни вызовов модели, поэтому для быстрой проверки поставьте в `configs/default.yaml` `judge.enabled: false`.
+
+### Настройки
+
+Всё в `configs/default.yaml`: модель и адрес Ollama (`llm`), режим судьи и подсказки (`judge`), параметры черновиков (`drafts`), режим по умолчанию (`mode`).
 
 ## Документы
 
 | Файл | Содержание |
 | --- | --- |
-| [docs/00_overview.md](docs/00_overview.md) | Что известно о данных, выбранная архитектура, отброшенные варианты, риски |
-| [docs/01_spec_data_eval.md](docs/01_spec_data_eval.md) | ТЗ: подготовка данных, разбиения, инструмент оценки |
-| [docs/02_spec_classification.md](docs/02_spec_classification.md) | ТЗ: определение микрокатегорий |
-| [docs/03_spec_drafts.md](docs/03_spec_drafts.md) | ТЗ: генерация и проверка черновиков |
-| [docs/04_spec_service_demo.md](docs/04_spec_service_demo.md) | ТЗ: единая функция предсказания, пакетный запуск, демо, замеры |
-| [docs/05_presentation_plan.md](docs/05_presentation_plan.md) | План слайдов и графиков |
-| [docs/06_experiments.md](docs/06_experiments.md) | Реестр экспериментов |
-| [docs/07_mentor_questions.md](docs/07_mentor_questions.md) | Вопросы к ментору и принятые предположения |
-| [docs/08_repo_and_roadmap.md](docs/08_repo_and_roadmap.md) | Структура репозитория и порядок реализации на 24 часа |
-| [docs/09_downloads.md](docs/09_downloads.md) | Список загрузок с командами |
-| [docs/10_sources.md](docs/10_sources.md) | Источники |
-| [docs/11_improvement_plan.md](docs/11_improvement_plan.md) | Разбор результатов шагов 0–2 и план улучшений |
+| [docs/13_backlog.md](docs/13_backlog.md) | Ход работы: этапы, принятые решения, отклонённые идеи, что не сделано |
+| [docs/14_experiments_report.md](docs/14_experiments_report.md) | Эксперименты по порядку, с числами и графиками |
+| [docs/15_architecture.md](docs/15_architecture.md) | Архитектура решения и выбор моделей |
+| [docs/06_experiments.md](docs/06_experiments.md) | Полный реестр экспериментов |
+| [docs/11_improvement_plan.md](docs/11_improvement_plan.md) | Разбор первых результатов и план улучшений |
+| [docs/12_mentor_meeting_questions.md](docs/12_mentor_meeting_questions.md) | Вопросы к менторам |
+| [docs/00_overview.md](docs/00_overview.md) | Исходный обзор данных и первоначальный план |
+| [docs/01_spec_data_eval.md](docs/01_spec_data_eval.md) – [docs/04_spec_service_demo.md](docs/04_spec_service_demo.md) | Технические задания: данные и оценка, классификация, черновики, сервис |
+| [docs/09_downloads.md](docs/09_downloads.md), [docs/10_sources.md](docs/10_sources.md) | Загрузки и источники |
 
-Исходные материалы организаторов лежат в `task/` и `dataset/public/`. Папка `scratch/` — разведочные скрипты, в git не попадает.
+Материалы организаторов — в `task/` и `dataset/public/`. Папки `scratch/` и `.nocommit/` в git не попадают.
 
-## Как запустить
+## Что не сделано
 
-Все команды — из корня репозитория, Python из `.venv` (на Windows добавьте `PYTHONUTF8=1`).
+- Три эксперта не измерены на публичном тесте, результат бота на приватном наборе на момент записи неизвестен.
+- Демо-интерфейс (форма и загрузка CSV) в этой ветке не реализован, папка `app/` пуста.
+- Ручная оценка качества черновиков не проводилась.
 
-```bash
-# 0. Проверка окружения: пакеты, GPU, Ollama по JSON-схеме, BERTA, длины текстов в токенах
-.venv/Scripts/python scripts/check_env.py
-
-# 1. Таблицы data/processed/ и сводка по данным
-.venv/Scripts/python scripts/prepare_data.py
-
-# 2. Ориентиры D1 и перебор слоя 1 (C1) с записью в reports/runs.jsonl (около 25 минут на CPU)
-.venv/Scripts/python scripts/run_step1.py
-
-# 3. Обучить слой 1 и сохранить в artifacts/tfidf/
-.venv/Scripts/python scripts/train.py
-
-# 4. Предсказание для файла (CSV/Parquet/JSONL со столбцом description; режимы classify | fast | full)
-.venv/Scripts/python scripts/predict_batch.py dataset/public/public-test-dataset.parquet out.jsonl --mode classify
-
-# 5. Оценка файла предсказаний на срезе (gold_raw, gold_consensus, silver_cv, silver_fold0, challenge)
-.venv/Scripts/python scripts/evaluate.py out.jsonl.bot.jsonl --slice gold_raw
-
-# 6. Черновики: эксперимент G1 (нужен запущенный Ollama с моделью из docs/09_downloads.md)
-.venv/Scripts/python scripts/run_g1.py
-```
-
-Тесты (pytest в окружении нет, файлы запускаются напрямую): `PYTHONPATH=src .venv/Scripts/python tests/test_core.py`, `tests/test_format.py`.
+Полный список — в конце [docs/13_backlog.md](docs/13_backlog.md).
