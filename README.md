@@ -116,6 +116,14 @@ Ollama должен быть запущен (`ollama serve` или прилож�
 .venv\Scripts\python scripts\evaluate.py out.jsonl.bot.jsonl --slice gold_raw
 ```
 
+Замеры для защиты — качество, время по этапам, токены, оценка стоимости — в `reports/benchmark.json`:
+
+```powershell
+.venv\Scripts\python scripts\benchmark.py --slice challenge --judge-mode panel single --drafts llm
+```
+
+Источник — срез с эталоном (`--slice challenge | gold_consensus | gold_raw`, считается и micro-F1) или любой CSV со столбцом `description` (`--input файл.csv`, только время и расход). `--drafts none` меряет одну классификацию, `--limit N` берёт первые N строк.
+
 Эксперименты с черновиками:
 
 ```powershell
