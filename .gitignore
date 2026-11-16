@@ -234,3 +234,5 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# демо-интерфейс: сохранённые отправки
+app/submissions/

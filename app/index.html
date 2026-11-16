@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Черновики объявлений</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --text:#1c1f24; --muted:#6b7280; --line:#e2e5ea; --accent:#0b6bcb; --ok:#1a8a43; --warn:#b45309; --bad:#c62828; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:10px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; }
+  #health { font-size:13px; color:var(--muted); display:flex; align-items:center; gap:6px; cursor:pointer; }
+  .dot { width:10px; height:10px; border-radius:50%; background:#aaa; display:inline-block; }
+  .dot.ok { background:var(--ok); } .dot.bad { background:var(--bad); } .dot.mid { background:var(--warn); }
+  nav { display:flex; gap:4px; margin-left:auto; }
+  nav button { border:1px solid var(--line); background:var(--bg); padding:7px 14px; border-radius:6px; cursor:pointer; font:inherit; }
+  nav button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  main { max-width:1200px; margin:16px auto; padding:0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px; }
+  .tab { display:none; } .tab.active { display:block; }
+  .opts { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-end; margin:12px 0; }
+  .opts label.group { display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--muted); }
+  select { font:inherit; padding:5px 8px; }
+  button.primary { background:var(--accent); color:#fff; border:0; padding:9px 20px; border-radius:6px; font:inherit; cursor:pointer; }
+  button.primary:disabled { opacity:.5; cursor:default; }
+  button.link { background:none; border:1px solid var(--line); border-radius:6px; padding:6px 12px; cursor:pointer; font:inherit; }
+  #drop { border:2px dashed var(--line); border-radius:8px; padding:26px; text-align:center; color:var(--muted); cursor:pointer; }
+  #drop.over { border-color:var(--accent); background:#eef5fd; }
+  textarea { width:100%; min-height:140px; font:inherit; padding:8px; border:1px solid var(--line); border-radius:6px; resize:vertical; }
+  .bar { height:14px; background:var(--line); border-radius:7px; overflow:hidden; margin:8px 0 4px; }
+  .bar > div { height:100%; background:var(--accent); width:0; transition:width .3s; }
+  .bar.busy > div { width:30% !important; animation:slide 1.2s infinite ease-in-out; }
+  @keyframes slide { 0% { margin-left:0 } 50% { margin-left:70% } 100% { margin-left:0 } }
+  .msg { padding:8px 12px; border-radius:6px; margin:8px 0; font-size:14px; }
+  .msg.err { background:#fdecea; color:var(--bad); } .msg.warn { background:#fff4e0; color:var(--warn); } .msg.info { background:#eef5fd; color:var(--accent); }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:12px; text-transform:uppercase; color:var(--muted); }
+  tr.row { cursor:pointer; } tr.row:hover { background:#f0f4fa; }
+  .chip { display:inline-block; background:#e8f1fc; color:var(--accent); border-radius:10px; padding:1px 9px; margin:1px 3px 1px 0; font-size:13px; white-space:nowrap; }
+  .badge { font-size:12px; border-radius:4px; padding:1px 6px; background:#eee; color:var(--muted); }
+  .badge.fb { background:#fff4e0; color:var(--warn); } .badge.er { background:#fdecea; color:var(--bad); }
+  .draft { border-left:3px solid var(--accent); padding:2px 0 2px 10px; margin:8px 0; }
+  .draft b { display:block; } .draft .t { white-space:pre-wrap; }
+  .orig { white-space:pre-wrap; background:#fafafa; border:1px solid var(--line); border-radius:6px; padding:8px; max-height:260px; overflow:auto; font-size:14px; }
+  tr.detail td { background:#fbfcfe; }
+  .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+  .toolbar .grow { flex:1; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:16px; } @media (max-width:800px) { .two { grid-template-columns:1fr; } }
+  .muted { color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Черновики объявлений</h1>
+  <div id="health" title="Нажмите, чтобы проверить заново"><span class="dot"></span><span id="healthText">проверка…</span></div>
+  <nav>
+    <button data-tab="file" class="active">Файл</button>
+    <button data-tab="one">Один текст</button>
+    <button data-tab="hist">Предыдущие отправки</button>
+  </nav>
+</header>
+<main>
+  <div id="common" class="card">
+    <div class="opts">
+      <label class="group">Режим судьи
+        <select id="judge"><option value="panel" selected>panel — три эксперта</option><option value="single">single — один судья</option></select></label>
+      <label class="group">Черновики
+        <select id="drafts"><option value="template" selected>template — шаблон, быстро</option><option value="llm">llm — пишет модель, медленно</option></select></label>
+      <label><input type="checkbox" id="with101" checked> добавлять 101</label>
+    </div>
+    <div class="muted">Эти настройки действуют на обеих вкладках обработки.</div>
+  </div>
+
+  <section id="tab-file" class="tab active">
+    <div class="card">
+      <div id="drop">Перетащите CSV сюда или нажмите, чтобы выбрать файл (столбцы testcase, description)</div>
+      <input type="file" id="fileInput" accept=".csv,text/csv" hidden>
+      <div id="fileInfo" class="muted" style="margin-top:8px"></div>
+      <div class="opts"><button class="primary" id="runFile" disabled>Запустить</button></div>
+      <div id="progFile"></div>
+    </div>
+    <div id="resFile"></div>
+  </section>
+
+  <section id="tab-one" class="tab">
+    <div class="card">
+      <textarea id="oneText" placeholder="Вставьте текст объявления о ремонте"></textarea>
+      <div class="opts"><button class="primary" id="runOne">Обработать</button></div>
+      <div id="progOne"></div>
+    </div>
+    <div id="resOne"></div>
+  </section>
+
+  <section id="tab-hist" class="tab">
+    <div class="card">
+      <div class="toolbar"><b class="grow">Предыдущие отправки</b><button class="link" id="refreshHist">Обновить</button></div>
+      <div id="histList"></div>
+    </div>
+    <div id="resHist"></div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const el = (tag, props = {}, ...kids) => { const e = document.createElement(tag); Object.assign(e, props); kids.flat().forEach(k => e.append(k)); return e; };
+const CAT = {101:"101 исходная категория", 102:"102 штукатурные работы", 103:"103 плитка", 104:"104 сантехника", 105:"105 электрика", 106:"106 малярные работы и обои"};
+let csvText = "", csvName = "", activeKind = null, timer = null, shownSub = null;
+
+// ---- вкладки
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("active", x === b));
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + b.dataset.tab));
+  $("#common").style.display = b.dataset.tab === "hist" ? "none" : "";
+  if (b.dataset.tab === "hist") loadHist();
+});
+
+// ---- состояние Ollama
+async function loadHealth() {
+  $("#healthText").textContent = "проверка…";
+  try {
+    const h = await (await fetch("/api/health")).json();
+    const dot = document.querySelector("#health .dot");
+    dot.className = "dot " + (h.ollama && h.model_present && h.tfidf ? "ok" : h.ollama || h.tfidf ? "mid" : "bad");
+    $("#healthText").textContent = h.ollama ? (h.model_present ? "Ollama и модель на месте" : "Ollama есть, модели нет") : "Ollama недоступна (будут ключевые корни)";
+    $("#health").title = (h.message || "Всё в порядке") + " Нажмите, чтобы проверить заново.";
+  } catch (e) { $("#healthText").textContent = "сервер демо не отвечает"; }
+}
+$("#health").onclick = loadHealth;
+
+// ---- загрузка файла
+function setFile(f) {
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { csvText = r.result; csvName = f.name; const n = Math.max(0, csvText.split(/\r?\n/).filter(l => l.trim()).length - 1);
+    $("#fileInfo").textContent = `Файл: ${f.name}, примерно ${n} строк (по переводам строк; точное число покажет обработка)`; $("#runFile").disabled = false; };
+  r.readAsText(f, "utf-8");
+}
+const drop = $("#drop");
+drop.onclick = () => $("#fileInput").click();
+$("#fileInput").onchange = e => setFile(e.target.files[0]);
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => setFile(e.dataTransfer.files[0]));
+
+// ---- запуск и опрос
+function params() { return { judge: $("#judge").value, drafts: $("#drafts").value, with_101: $("#with101").checked }; }
+async function start(kind, body) {
+  const box = kind === "file" ? $("#progFile") : $("#progOne");
+  box.replaceChildren();
+  const r = await fetch("/api/run", { method: "POST", body: JSON.stringify({ ...params(), ...body }) });
+  const j = await r.json();
+  if (!r.ok) { box.append(el("div", { className: "msg err", textContent: j.error || "Ошибка запуска" })); return; }
+  activeKind = kind; (kind === "file" ? $("#resFile") : $("#resOne")).replaceChildren(); poll();
+}
+$("#runFile").onclick = () => start("file", { csv: csvText, name: csvName });
+$("#runOne").onclick = () => { const t = $("#oneText").value.trim(); if (t) start("text", { text: t }); };
+
+function fmtTime(s) { s = Math.round(s); return Math.floor(s / 60) + " мин " + String(s % 60).padStart(2, "0") + " с"; }
+function setBusy(running) { $("#runFile").disabled = running || !csvText; $("#runOne").disabled = running; }
+
+async function poll() {
+  clearTimeout(timer);
+  let s;
+  try { s = await (await fetch("/api/status")).json(); } catch (e) { timer = setTimeout(poll, 2000); return; }
+  const kind = s.kind === "text" ? "one" : "file";
+  const box = kind === "file" ? $("#progFile") : $("#progOne");
+  if (s.status === "running") {
+    setBusy(true); activeKind = activeKind || kind;
+    const pct = s.total ? Math.round(100 * s.done / s.total) : 0;
+    const one = s.kind === "text";
+    box.replaceChildren(
+      el("div", { className: "bar" + (one ? " busy" : "") }, el("div", { style: `width:${pct}%` })),
+      el("div", { className: "muted", textContent: one ? `Идёт обработка… ${fmtTime(s.elapsed || 0)}` : `Обработано ${s.done} из ${s.total}, прошло ${fmtTime(s.elapsed || 0)}` }));
+    timer = setTimeout(poll, 1000);
+  } else {
+    setBusy(false);
+    if (s.status === "error") box.replaceChildren(el("div", { className: "msg err", textContent: "Обработка не удалась: " + s.error }));
+    else if (s.status === "done" && activeKind) {
+      box.replaceChildren(el("div", { className: "msg info", textContent: `Готово за ${fmtTime(s.elapsed || 0)}.` }));
+      if (s.warning) box.append(el("div", { className: "msg warn", textContent: s.warning }));
+      const sub = await (await fetch("/api/submissions/" + s.submission)).json();
+      renderResult(kind === "file" ? $("#resFile") : $("#resOne"), sub, kind === "one");
+      activeKind = null;
+    }
+  }
+}
+
+// ---- результат
+function draftsBlock(row) {
+  const d = el("div");
+  if (!row.drafts.length) d.append(el("div", { className: "muted", textContent: "Категорий 102–106 не найдено." }));
+  row.drafts.forEach(x => d.append(el("div", { className: "draft" },
+    el("span", { className: "muted", textContent: CAT[x.mcId] || x.mcId }),
+    x.text ? [el("b", { textContent: x.title || "(без заголовка)" }), el("div", { className: "t", textContent: x.text })] : el("div", { className: "muted", textContent: "Черновик не сформирован." }))));
+  if (row.error) d.append(el("div", { className: "msg err", textContent: "Ошибка в строке: " + row.error }));
+  return d;
+}
+function chips(row) { return row.drafts.length ? row.drafts.map(x => el("span", { className: "chip", textContent: CAT[x.mcId] || x.mcId })) : [el("span", { className: "muted", textContent: "нет" })]; }
+function badge(row) {
+  const s = row.source || "—";
+  return el("span", { className: "badge" + (s === "keywords_fallback" ? " fb" : s === "error" ? " er" : ""), textContent: s,
+    title: s === "keywords_fallback" ? "LLM недоступна, категории найдены по ключевым корням" : "" });
+}
+function renderResult(box, sub, sideBySide) {
+  const m = sub.meta, rows = sub.rows;
+  box.replaceChildren();
+  const head = el("div", { className: "toolbar" },
+    el("b", { className: "grow", textContent: `${m.name} — ${m.rows} строк, ${m.with_categories} с категориями, ${m.duration} с` }));
+  if (!sideBySide) {
+    head.append(el("button", { className: "link", textContent: "Раскрыть все", onclick: () => box.querySelectorAll("tr.detail").forEach(t => t.hidden = false) }),
+                el("button", { className: "link", textContent: "Свернуть все", onclick: () => box.querySelectorAll("tr.detail").forEach(t => t.hidden = true) }));
+  }
+  head.append(el("a", { className: "link", href: `/api/submissions/${m.id}/csv`, textContent: "Скачать CSV", style: "text-decoration:none;color:inherit;border:1px solid var(--line);border-radius:6px;padding:6px 12px" }));
+  const card = el("div", { className: "card" }, head);
+  if (m.warning) card.append(el("div", { className: "msg warn", textContent: m.warning }));
+  if (m.errors) card.append(el("div", { className: "msg err", textContent: `Строк с ошибкой: ${m.errors}` }));
+  if (sideBySide) {
+    const r = rows[0];
+    card.append(el("div", { className: "two" },
+      el("div", {}, el("div", { className: "muted", textContent: "Исходный текст" }), el("div", { className: "orig", textContent: r.description })),
+      el("div", {}, el("div", {}, chips(r), badge(r)), draftsBlock(r))));
+  } else {
+    const tb = el("tbody");
+    rows.forEach(r => {
+      const detail = el("tr", { className: "detail", hidden: true }, el("td", { colSpan: 3 },
+        draftsBlock(r),
+        (() => { const d = el("details", {}, el("summary", { textContent: "Исходное описание" }), el("div", { className: "orig", textContent: r.description })); return d; })()));
+      const tr = el("tr", { className: "row", onclick: () => detail.hidden = !detail.hidden },
+        el("td", { textContent: r.testcase }), el("td", {}, chips(r)), el("td", {}, badge(r)));
+      tb.append(tr, detail);
+    });
+    card.append(el("table", {}, el("thead", {}, el("tr", {}, el("th", { textContent: "testcase (нажмите на строку)" }), el("th", { textContent: "Найденные категории" }), el("th", { textContent: "Источник" }))), tb));
+  }
+  box.append(card);
+}
+
+// ---- история
+async function loadHist() {
+  const list = await (await fetch("/api/submissions")).json();
+  const box = $("#histList"); box.replaceChildren();
+  if (!list.length) { box.append(el("div", { className: "muted", textContent: "Пока нет отправок." })); return; }
+  const tb = el("tbody");
+  list.forEach(m => tb.append(el("tr", { className: "row", onclick: async () => {
+      const sub = await (await fetch("/api/submissions/" + m.id)).json();
+      renderResult($("#resHist"), sub, m.kind === "text"); $("#resHist").scrollIntoView({ behavior: "smooth" }); } },
+    el("td", { textContent: m.created.replace("T", " ") }), el("td", { textContent: m.name }), el("td", { textContent: m.rows }),
+    el("td", { textContent: `${m.params.judge}, ${m.params.drafts}${m.params.with_101 ? ", +101" : ""}` }), el("td", { textContent: m.duration + " с" }))));
+  box.append(el("table", {}, el("thead", {}, el("tr", {}, ["Время", "Файл", "Строк", "Параметры", "Длительность"].map(t => el("th", { textContent: t })))), tb));
+}
+$("#refreshHist").onclick = loadHist;
+
+loadHealth(); poll();
+</script>
+</body>
+</html>

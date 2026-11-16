@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import sys
 import threading
@@ -20,8 +19,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from avito_drafts.config import load_config  # noqa: E402
 from avito_drafts.predict import Predictor  # noqa: E402
-
-JUDGE_KEYS = ("candidates", "sources", "roles", "strict_roles", "arbiter", "disagree", "fallback", "errors")
+from avito_drafts.submission import process_row, write_submission_csv  # noqa: E402
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -53,13 +51,7 @@ if __name__ == "__main__":
     t0 = time.time()
 
     def work(tc: str, desc: str) -> dict:
-        ans, info = pr.predict_batch([{"description": desc, "title": "", "mcId": 101}], progress=False)[0]
-        drafts = ans["drafts"]
-        if a.drafts == "template" and drafts:
-            items = pr.drafter().make(desc, "", [d["mcId"] for d in drafts], use_llm=False)
-            drafts = [{"mcId": i["mcId"], "title": i["title"], "text": i["text"]} for i in items]
-        return {"testcase": tc, "drafts": drafts, "drafts_by": a.drafts, "source": info.get("source"), "error": info.get("error"),
-                "judge": {k: (info.get("judge") or {}).get(k) for k in JUDGE_KEYS}}
+        return process_row(pr, tc, desc, a.drafts)
 
     with open(cache, "a", encoding="utf-8") as f:
         def save(j: dict) -> None:
@@ -82,13 +74,7 @@ if __name__ == "__main__":
                     save(fut.result())
 
     with open(a.output, "w", encoding="utf-8", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(["testcase", "microcats", "descriptions"])
-        for tc in df.testcase:
-            dr = done[tc]["drafts"]
-            cats = ([101] if a.with_101 else []) + [d["mcId"] for d in dr]
-            texts = [((d.get("title") or "") + "\n" + d["text"]).strip() for d in dr if d.get("text")]
-            w.writerow([tc, json.dumps(cats), json.dumps(texts, ensure_ascii=False)])
+        write_submission_csv(f, df.testcase, done, a.with_101)
     n_cat = sum(len(done[t]["drafts"]) for t in df.testcase)
     empty = sum(not done[t]["drafts"] for t in df.testcase)
     src = pd.Series([done[t]["source"] for t in df.testcase]).value_counts().to_dict()
