@@ -67,10 +67,9 @@
       <label class="group">Режим судьи
         <select id="judge"><option value="panel" selected>panel — три эксперта</option><option value="single">single — один судья</option></select></label>
       <label class="group">Черновики
-        <select id="drafts"><option value="template" selected>template — шаблон, быстро</option><option value="llm">llm — пишет модель, медленно</option></select></label>
+        <select id="drafts"><option value="template">template — шаблон, быстро</option><option value="llm" selected>llm — пишет модель, медленно</option></select></label>
       <label>Параллельно
-        <select id="workers"><option value="1" selected>1 — по очереди</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
-      <label><input type="checkbox" id="with101" checked> добавлять 101</label>
+        <select id="workers"><option value="1">1 — по очереди</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></label>
     </div>
     <div class="muted">Эти настройки действуют на обеих вкладках обработки.</div>
   </div>
@@ -147,7 +146,7 @@ $("#fileInput").onchange = e => setFile(e.target.files[0]);
 drop.addEventListener("drop", e => setFile(e.dataTransfer.files[0]));
 
 // ---- запуск и опрос
-function params() { return { judge: $("#judge").value, drafts: $("#drafts").value, with_101: $("#with101").checked, workers: +$("#workers").value }; }
+function params() { return { judge: $("#judge").value, drafts: $("#drafts").value, with_101: false, workers: +$("#workers").value }; }
 async function start(kind, body) {
   const box = kind === "file" ? $("#progFile") : $("#progOne");
   box.replaceChildren();

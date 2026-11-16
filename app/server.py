@@ -129,7 +129,7 @@ def run_job(kind: str, name: str, rows: list[tuple[str, str]], params: dict[str,
 
 
 def start_job(body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
-    params = {"judge": body.get("judge", "panel"), "drafts": body.get("drafts", "template"), "with_101": bool(body.get("with_101", True)),
+    params = {"judge": body.get("judge", "panel"), "drafts": body.get("drafts", "llm"), "with_101": bool(body.get("with_101", False)),
               "workers": max(1, min(8, int(body.get("workers") or 1)))}
     if params["judge"] not in ("single", "panel") or params["drafts"] not in ("template", "llm"):
         return 400, {"error": "Неверные параметры режима."}
