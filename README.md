@@ -9,7 +9,7 @@
 1. Остановите Ollama, если она запущена, и запустите её заново с параллельной обработкой (число должно быть не меньше значения «Параллельно» в интерфейсе):
 
 ```powershell
-$env:OLLAMA_NUM_PARALLEL = "3"; ollama serve
+$env:OLLAMA_NUM_PARALLEL = "4"; ollama serve
 ```
 
 2. В другом окне PowerShell, в папке проекта:
