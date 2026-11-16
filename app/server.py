@@ -11,6 +11,7 @@ import re
 import sys
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -86,17 +87,28 @@ def run_job(kind: str, name: str, rows: list[tuple[str, str]], params: dict[str,
         warning = h["message"] if (not h["ollama"] or not h["model_present"]) else ""
         pr = get_predictor(params["judge"], params["drafts"])
         pr.mode = "full" if params["drafts"] == "llm" else "classify"
-        results: list[dict[str, Any]] = []
-        for tc, desc in rows:
+        slots: list[dict[str, Any] | None] = [None] * len(rows)
+
+        def one(i: int) -> None:
+            tc, desc = rows[i]
             try:
                 r = process_row(pr, tc, desc, params["drafts"])
             except Exception as e:  # noqa: BLE001
                 r = {"testcase": tc, "drafts": [], "drafts_by": params["drafts"], "source": "error", "error": repr(e), "judge": {}}
             r["description"] = desc
             r["problems"] = row_problems(r)
-            results.append(r)
+            slots[i] = r
             with LOCK:
-                JOB["done"] = len(results)
+                JOB["done"] = sum(x is not None for x in slots)
+
+        one(0)  # первая строка отдельно: прогрев модели и ленивых загрузок
+        if params.get("workers", 1) <= 1:
+            for i in range(1, len(rows)):
+                one(i)
+        else:
+            with ThreadPoolExecutor(params["workers"]) as ex:
+                list(ex.map(one, range(1, len(rows))))
+        results = [r for r in slots if r is not None]
         dur = time.time() - t0
         sid, d = new_submission_dir()
         meta = {"id": sid, "name": name, "kind": kind, "created": datetime.now().isoformat(timespec="seconds"), "params": params,
@@ -117,7 +129,8 @@ def run_job(kind: str, name: str, rows: list[tuple[str, str]], params: dict[str,
 
 
 def start_job(body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
-    params = {"judge": body.get("judge", "panel"), "drafts": body.get("drafts", "template"), "with_101": bool(body.get("with_101", True))}
+    params = {"judge": body.get("judge", "panel"), "drafts": body.get("drafts", "template"), "with_101": bool(body.get("with_101", True)),
+              "workers": max(1, min(8, int(body.get("workers") or 1)))}
     if params["judge"] not in ("single", "panel") or params["drafts"] not in ("template", "llm"):
         return 400, {"error": "Неверные параметры режима."}
     if body.get("text") is not None:
