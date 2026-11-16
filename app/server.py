@@ -175,6 +175,52 @@ def load_submission(sid: str) -> dict[str, Any] | None:
     return {"meta": meta, "rows": rows, "cat_names": CAT_NAMES_RU}
 
 
+EDIT_LOCK = threading.Lock()
+
+
+def edit_draft(sid: str, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    """Правка заголовка и текста одного черновика: обновляет results.jsonl и пересобирает out.csv (порядок строк сохраняется)."""
+    d = SUBMISSIONS / sid
+    if not ID_RE.match(sid) or not (d / "meta.json").exists():
+        return 404, {"error": "Отправка не найдена."}
+    tc, title, text = body.get("testcase"), body.get("title"), body.get("text")
+    try:
+        mc = int(body.get("mcId"))
+    except (TypeError, ValueError):
+        return 400, {"error": "Неверная категория."}
+    if not isinstance(tc, str) or not isinstance(title, str) or not isinstance(text, str):
+        return 400, {"error": "Неверный запрос."}
+    title, text = title.strip(), text.strip()
+    if not text:
+        return 400, {"error": "Текст не может быть пустым."}
+    tmax, xmax = CFG["drafts"]["title_max"], CFG["drafts"]["text_max"]
+    if len(title) > tmax:
+        return 400, {"error": f"Заголовок длиннее {tmax} символов."}
+    if len(text) > xmax:
+        return 400, {"error": f"Текст длиннее {xmax} символов."}
+    with EDIT_LOCK:
+        meta = json.loads((d / "meta.json").read_text(encoding="utf-8"))
+        rows = [json.loads(l) for l in (d / "results.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
+        row = next((r for r in rows if r.get("testcase") == tc), None)
+        if row is None:
+            return 404, {"error": "Строка с таким testcase не найдена."}
+        dr = next((x for x in row.get("drafts") or [] if x.get("mcId") == mc), None)
+        if dr is None:
+            return 404, {"error": "У строки нет черновика этой категории."}
+        dr.update(title=title, text=text, edited=True)
+        row["problems"] = row_problems(row)
+        meta["errors"] = sum(1 for r in rows if r.get("problems"))
+        done = {r["testcase"]: r for r in rows}
+        tmp = d / "results.jsonl.tmp"
+        tmp.write_text("".join(json.dumps(r, ensure_ascii=False, default=str) + "\n" for r in rows), encoding="utf-8")
+        with open(d / "out.csv.tmp", "w", encoding="utf-8", newline="") as f:
+            write_submission_csv(f, [r["testcase"] for r in rows], done, bool(meta["params"].get("with_101", True)))
+        tmp.replace(d / "results.jsonl")
+        (d / "out.csv.tmp").replace(d / "out.csv")
+        (d / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    return 200, {"ok": True, "draft": dr, "errors": meta["errors"]}
+
+
 CAT_NAMES_RU = {101: "Ремонт (исходная категория)", 102: "Штукатурные работы", 103: "Плитка", 104: "Сантехника", 105: "Электрика", 106: "Малярные работы и обои"}
 
 
@@ -219,7 +265,9 @@ class Handler(BaseHTTPRequestHandler):
             self.json({"error": "Не найдено."}, 404)
 
     def do_POST(self) -> None:  # noqa: N802
-        if self.path != "/api/run":
+        p = self.path.split("?")[0]
+        em = re.fullmatch(r"/api/submissions/([^/]+)/edit", p)
+        if p != "/api/run" and not em:
             return self.json({"error": "Не найдено."}, 404)
         n = int(self.headers.get("Content-Length") or 0)
         if n > MAX_BODY:
@@ -228,7 +276,9 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(n).decode("utf-8"))
         except Exception:  # noqa: BLE001
             return self.json({"error": "Неверный запрос."}, 400)
-        code, resp = start_job(body)
+        if not isinstance(body, dict):
+            return self.json({"error": "Неверный запрос."}, 400)
+        code, resp = edit_draft(em.group(1), body) if em else start_job(body)
         self.json(resp, code)
 
 

@@ -188,12 +188,40 @@ async function poll() {
 }
 
 // ---- результат
-function draftsBlock(row) {
+function originNote(x) {
+  if (x.by === "llm") return "написано моделью";
+  if (x.by === "regen") return "написано моделью со второй попытки" + (x.violations && x.violations.length ? " (первая: " + x.violations.join("; ") + ")" : "");
+  if (x.by === "template") return "шаблон: " + (x.reason || "");
+  return "";
+}
+function draftEditor(x, row, sid) {
+  const ti = el("input", { type: "text", maxLength: 50, value: x.title || "", style: "width:100%;font:inherit;font-weight:600;padding:5px 8px;border:1px solid var(--line);border-radius:6px" });
+  const tx = el("textarea", { value: x.text || "", style: "min-height:110px;margin-top:4px" });
+  const st = el("span", { className: "muted" });
+  const mark = el("span", { className: "badge", textContent: "отредактировано", hidden: !x.edited });
+  const btn = el("button", { className: "link", textContent: "Сохранить" });
+  const dirty = () => { st.textContent = "есть несохранённые изменения"; st.style.color = "var(--warn)"; };
+  ti.oninput = tx.oninput = dirty;
+  btn.onclick = async () => {
+    st.style.color = ""; st.textContent = "сохранение…";
+    try {
+      const r = await fetch(`/api/submissions/${sid}/edit`, { method: "POST", body: JSON.stringify({ testcase: row.testcase, mcId: x.mcId, title: ti.value, text: tx.value }) });
+      const j = await r.json();
+      if (!r.ok) { st.textContent = j.error || "ошибка сохранения"; st.style.color = "var(--bad)"; return; }
+      x.title = j.draft.title; x.text = j.draft.text; x.edited = true; ti.value = x.title; tx.value = x.text;
+      mark.hidden = false; st.textContent = "сохранено"; st.style.color = "var(--ok)";
+    } catch (e) { st.textContent = "ошибка сети"; st.style.color = "var(--bad)"; }
+  };
+  const note = originNote(x);
+  return [ti, tx, el("div", { className: "toolbar", style: "margin:4px 0 0" }, btn, st, mark),
+          note ? el("div", { className: "muted", style: "font-size:12px", textContent: note }) : ""];
+}
+function draftsBlock(row, sid) {
   const d = el("div");
   if (!row.drafts.length) d.append(el("div", { className: "muted", textContent: "Категорий 102–106 не найдено." }));
   row.drafts.forEach(x => d.append(el("div", { className: "draft" },
     el("span", { className: "muted", textContent: CAT[x.mcId] || x.mcId }),
-    x.text ? [el("b", { textContent: x.title || "(без заголовка)" }), el("div", { className: "t", textContent: x.text })] : el("div", { className: "muted", textContent: "Черновик не сформирован." }))));
+    x.text ? draftEditor(x, row, sid) : el("div", { className: "muted", textContent: "Черновик не сформирован." }))));
   (row.problems || (row.error ? [row.error] : [])).forEach(p => d.append(el("div", { className: "msg err", textContent: "Проблема: " + p })));
   return d;
 }
@@ -220,12 +248,12 @@ function renderResult(box, sub, sideBySide) {
     const r = rows[0];
     card.append(el("div", { className: "two" },
       el("div", {}, el("div", { className: "muted", textContent: "Исходный текст" }), el("div", { className: "orig", textContent: r.description })),
-      el("div", {}, el("div", {}, chips(r), badge(r)), draftsBlock(r))));
+      el("div", {}, el("div", {}, chips(r), badge(r)), draftsBlock(r, m.id))));
   } else {
     const tb = el("tbody");
     rows.forEach(r => {
       const detail = el("tr", { className: "detail", hidden: true }, el("td", { colSpan: 3 },
-        draftsBlock(r),
+        draftsBlock(r, m.id),
         (() => { const d = el("details", {}, el("summary", { textContent: "Исходное описание" }), el("div", { className: "orig", textContent: r.description })); return d; })()));
       const tr = el("tr", { className: "row", onclick: () => detail.hidden = !detail.hidden },
         el("td", { textContent: r.testcase }), el("td", {}, chips(r)), el("td", {}, badge(r)));
