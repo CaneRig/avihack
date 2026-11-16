@@ -194,7 +194,7 @@ function draftsBlock(row) {
   row.drafts.forEach(x => d.append(el("div", { className: "draft" },
     el("span", { className: "muted", textContent: CAT[x.mcId] || x.mcId }),
     x.text ? [el("b", { textContent: x.title || "(без заголовка)" }), el("div", { className: "t", textContent: x.text })] : el("div", { className: "muted", textContent: "Черновик не сформирован." }))));
-  if (row.error) d.append(el("div", { className: "msg err", textContent: "Ошибка в строке: " + row.error }));
+  (row.problems || (row.error ? [row.error] : [])).forEach(p => d.append(el("div", { className: "msg err", textContent: "Проблема: " + p })));
   return d;
 }
 function chips(row) { return row.drafts.length ? row.drafts.map(x => el("span", { className: "chip", textContent: CAT[x.mcId] || x.mcId })) : [el("span", { className: "muted", textContent: "нет" })]; }
@@ -215,7 +215,7 @@ function renderResult(box, sub, sideBySide) {
   head.append(el("a", { className: "link", href: `/api/submissions/${m.id}/csv`, textContent: "Скачать CSV", style: "text-decoration:none;color:inherit;border:1px solid var(--line);border-radius:6px;padding:6px 12px" }));
   const card = el("div", { className: "card" }, head);
   if (m.warning) card.append(el("div", { className: "msg warn", textContent: m.warning }));
-  if (m.errors) card.append(el("div", { className: "msg err", textContent: `Строк с ошибкой: ${m.errors}` }));
+  if (m.errors) card.append(el("div", { className: "msg err", textContent: `Строк с техническими проблемами (проверьте перед отправкой): ${m.errors}` }));
   if (sideBySide) {
     const r = rows[0];
     card.append(el("div", { className: "two" },

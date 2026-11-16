@@ -25,7 +25,7 @@ import pandas as pd  # noqa: E402
 
 from avito_drafts.config import ROOT as PROJECT_ROOT, load_config  # noqa: E402
 from avito_drafts.predict import Predictor  # noqa: E402
-from avito_drafts.submission import process_row, write_submission_csv  # noqa: E402
+from avito_drafts.submission import process_row, row_problems, write_submission_csv  # noqa: E402
 
 SUBMISSIONS = APP / "submissions"
 MAX_BODY = 64 * 1024 * 1024
@@ -93,6 +93,7 @@ def run_job(kind: str, name: str, rows: list[tuple[str, str]], params: dict[str,
             except Exception as e:  # noqa: BLE001
                 r = {"testcase": tc, "drafts": [], "drafts_by": params["drafts"], "source": "error", "error": repr(e), "judge": {}}
             r["description"] = desc
+            r["problems"] = row_problems(r)
             results.append(r)
             with LOCK:
                 JOB["done"] = len(results)
@@ -100,7 +101,7 @@ def run_job(kind: str, name: str, rows: list[tuple[str, str]], params: dict[str,
         sid, d = new_submission_dir()
         meta = {"id": sid, "name": name, "kind": kind, "created": datetime.now().isoformat(timespec="seconds"), "params": params,
                 "rows": len(rows), "duration": round(dur, 1), "warning": warning,
-                "errors": sum(1 for r in results if r.get("error")), "with_categories": sum(1 for r in results if r["drafts"])}
+                "errors": sum(1 for r in results if row_problems(r)), "with_categories": sum(1 for r in results if r["drafts"])}
         (d / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
         with open(d / "results.jsonl", "w", encoding="utf-8") as f:
             for r in results:
@@ -133,6 +134,9 @@ def start_job(body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
             return 400, {"error": "В файле должны быть столбцы testcase и description."}
         if df.empty:
             return 400, {"error": "В файле нет строк."}
+        dup = df.testcase[df.testcase.duplicated()].unique().tolist()
+        if dup:
+            return 400, {"error": f"Повторяющиеся testcase: {', '.join(dup[:5])}. Идентификаторы должны быть уникальны."}
         kind, name, rows = "file", str(body.get("name") or "файл.csv"), list(zip(df.testcase, df.description))
     with LOCK:
         if JOB.get("status") == "running":

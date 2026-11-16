@@ -24,6 +24,21 @@ def process_row(pr: Predictor, tc: str, desc: str, drafts_by: str) -> dict[str, 
             "judge": {k: (info.get("judge") or {}).get(k) for k in JUDGE_KEYS}}
 
 
+def row_problems(r: dict[str, Any]) -> list[str]:
+    """Технические сбои строки, которые нельзя выдавать за «услуг нет»: ошибка, сбой судьи, откат на корни, черновик без текста."""
+    out = []
+    if r.get("error"):
+        out.append(f"ошибка: {r['error']}")
+    j = r.get("judge") or {}
+    if j.get("errors"):
+        out.append(f"сбой судьи: {j['errors']}")
+    if r.get("source") == "keywords_fallback" or j.get("fallback"):
+        out.append("категории найдены по ключевым корням (модель не ответила)")
+    if r.get("drafts_by") != "none" and any(not d.get("text") for d in r.get("drafts") or []):
+        out.append("у категории нет текста черновика")
+    return out
+
+
 def write_submission_csv(f: TextIO, testcases: Iterable[str], done: dict[str, dict], with_101: bool) -> None:
     """Пишет CSV для бота: microcats и descriptions — JSON-списки."""
     w = csv.writer(f)
